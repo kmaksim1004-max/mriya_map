@@ -156,6 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const pasteCenterBtn = document.getElementById('pasteCenterBtn');
   const cancelPasteBtn = document.getElementById('cancelPasteBtn');
   const polygonCard = document.getElementById('polygonCard');
+  const togglePolygonCardBtn = document.getElementById('togglePolygonCardBtn');
+  const polygonCardHeader = document.getElementById('polygonCardHeader');
+  const autoSaveIndicator = document.getElementById('autoSaveIndicator');
   const closePolygonCardBtn = document.getElementById('closePolygonCardBtn');
   const polygonNameInput = document.getElementById('polygonNameInput');
   const polygonStatusTag = document.getElementById('polygonStatusTag');
@@ -279,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   map.on('moveend', () => {
     updateUrlHash();
+    autoSaveState();
   });
 
   function updateUrlHash() {
@@ -990,6 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (polyData.imageOverlayLayer) {
         polyData.imageOverlayLayer.update();
       }
+      autoSaveState();
     });
 
     showToast('Територію створено! Супутниковий знімок всередині захоплено та готовий до копіювання.');
@@ -1064,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activePolygon === poly) {
       updateHandlePositions(newCoords);
     }
+    autoSaveState();
   }
 
   // Розрахунок площі та периметру
@@ -1140,6 +1146,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     polygonCard.classList.remove('hidden');
+    polygonCard.classList.remove('collapsed');
+    if (togglePolygonCardBtn) {
+      togglePolygonCardBtn.setAttribute('title', 'Згорнути панель');
+      togglePolygonCardBtn.setAttribute('aria-label', 'Згорнути панель');
+    }
 
     const currentCoords = computeTransformedLatLngs(poly);
     updatePolygonMetricsDisplay(currentCoords);
@@ -1153,6 +1164,185 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   closePolygonCardBtn.addEventListener('click', deselectPolygon);
+
+  // Згортання та розгортання панелі території
+  function togglePolygonCardCollapse() {
+    polygonCard.classList.toggle('collapsed');
+    const isCollapsed = polygonCard.classList.contains('collapsed');
+    if (togglePolygonCardBtn) {
+      togglePolygonCardBtn.setAttribute('title', isCollapsed ? 'Розгорнути панель' : 'Згорнути панель');
+      togglePolygonCardBtn.setAttribute('aria-label', isCollapsed ? 'Розгорнути панель' : 'Згорнути панель');
+    }
+  }
+
+  if (togglePolygonCardBtn) {
+    togglePolygonCardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePolygonCardCollapse();
+    });
+  }
+
+  if (polygonCardHeader) {
+    polygonCardHeader.addEventListener('click', (e) => {
+      if (e.target === polygonNameInput || e.target.closest('button')) return;
+      togglePolygonCardCollapse();
+    });
+  }
+
+  // --- АВТОЗБЕРЕЖЕННЯ У LOCALSTORAGE ---
+  const AUTOSAVE_STORAGE_KEY = 'mriya_map_data_v1';
+  let autoSaveTimer = null;
+
+  function flashAutoSaveBadge() {
+    if (!autoSaveIndicator) return;
+    autoSaveIndicator.textContent = '💾 Збережено';
+    autoSaveIndicator.style.opacity = '1';
+    setTimeout(() => {
+      if (autoSaveIndicator) autoSaveIndicator.style.opacity = '0.7';
+    }, 1500);
+  }
+
+  function autoSaveState() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      try {
+        const serialized = polygons.map(p => {
+          let sourceDataUrl = null;
+          if (p.sourceImage) {
+            try {
+              if (p.sourceImage instanceof HTMLCanvasElement) {
+                sourceDataUrl = p.sourceImage.toDataURL('image/jpeg', 0.85);
+              } else if (p.sourceImage instanceof HTMLImageElement && p.sourceImage.src) {
+                sourceDataUrl = p.sourceImage.src;
+              }
+            } catch (e) {}
+          }
+          return {
+            id: p.id,
+            name: p.name,
+            center: { lat: p.center.lat, lng: p.center.lng },
+            baseOffsets: p.baseOffsets,
+            scale: p.scale,
+            rotation: p.rotation,
+            color: p.color,
+            opacity: p.opacity !== undefined ? p.opacity : 1.0,
+            contourOpacity: p.contourOpacity !== undefined ? p.contourOpacity : 1.0,
+            sourceWidth: p.sourceWidth,
+            sourceHeight: p.sourceHeight,
+            sourceCenterInImg: p.sourceCenterInImg,
+            captureZoom: p.captureZoom,
+            captureCenter: p.captureCenter ? { lat: p.captureCenter.lat, lng: p.captureCenter.lng } : null,
+            sourceImageData: sourceDataUrl
+          };
+        });
+
+        const payload = {
+          version: 1,
+          savedAt: Date.now(),
+          polygons: serialized,
+          mapView: {
+            lat: map.getCenter().lat,
+            lng: map.getCenter().lng,
+            zoom: map.getZoom(),
+            layer: activeLayerKey
+          }
+        };
+
+        try {
+          localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(payload));
+        } catch (quotaErr) {
+          payload.polygons = payload.polygons.map(p => {
+            const light = Object.assign({}, p);
+            delete light.sourceImageData;
+            return light;
+          });
+          localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(payload));
+        }
+
+        flashAutoSaveBadge();
+      } catch (err) {
+        console.warn('AutoSave failed:', err);
+      }
+    }, 200);
+  }
+
+  function loadAutoSavedState() {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_STORAGE_KEY);
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.polygons) || data.polygons.length === 0) return;
+
+      data.polygons.forEach((saved, index) => {
+        const polyData = {
+          id: saved.id || ('poly_' + Date.now() + '_' + index),
+          name: saved.name || `Територія ${index + 1}`,
+          center: saved.center,
+          baseOffsets: saved.baseOffsets,
+          scale: saved.scale !== undefined ? saved.scale : 100,
+          rotation: saved.rotation !== undefined ? saved.rotation : 0,
+          color: saved.color || '#1a73e8',
+          opacity: saved.opacity !== undefined ? saved.opacity : 1.0,
+          contourOpacity: saved.contourOpacity !== undefined ? saved.contourOpacity : 1.0,
+          sourceImage: null,
+          sourceWidth: saved.sourceWidth || 0,
+          sourceHeight: saved.sourceHeight || 0,
+          sourceCenterInImg: saved.sourceCenterInImg || null,
+          captureZoom: saved.captureZoom || map.getZoom(),
+          captureCenter: saved.captureCenter || saved.center,
+          layer: null,
+          imageOverlayLayer: null
+        };
+
+        const initialCoords = computeTransformedLatLngs(polyData);
+        const polyLayer = L.polygon(initialCoords, {
+          color: polyData.color,
+          fillColor: polyData.color,
+          fillOpacity: (polyData.contourOpacity !== undefined ? polyData.contourOpacity : 1.0) * 0.02,
+          opacity: polyData.contourOpacity !== undefined ? polyData.contourOpacity : 1.0,
+          weight: (polyData.contourOpacity === 0) ? 0 : 2
+        }).addTo(map);
+
+        polyData.layer = polyLayer;
+        polyData.imageOverlayLayer = new TerritoryOverlay(polyData).addTo(map);
+
+        polyLayer.on('click', (e) => {
+          if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+          if (!areaDrawMode && !pasteMode && !measureMode) {
+            selectPolygon(polyData);
+          }
+        });
+
+        if (saved.sourceImageData) {
+          const img = new Image();
+          img.onload = () => {
+            polyData.sourceImage = img;
+            updatePolygonStyle(polyData);
+            if (polyData.imageOverlayLayer) {
+              polyData.imageOverlayLayer.update();
+            }
+          };
+          img.src = saved.sourceImageData;
+        } else if (polyData.captureCenter) {
+          capturePolygonImagery(polyData).then(() => {
+            updatePolygonStyle(polyData);
+            if (polyData.imageOverlayLayer) {
+              polyData.imageOverlayLayer.update();
+            }
+          });
+        }
+
+        polygons.push(polyData);
+      });
+
+      if (polygons.length > 0) {
+        showToast(`Автоматично відновлено збережених територій: ${polygons.length}`);
+      }
+    } catch (e) {
+      console.warn('Failed to load autosaved state:', e);
+    }
+  }
 
   // Створення ручок для перетягування та візуалізації вершин
   function createHandles(poly, coords) {
@@ -1177,6 +1367,10 @@ document.addEventListener('DOMContentLoaded', () => {
     centerHandle.on('drag', (e) => {
       poly.center = { lat: e.latlng.lat, lng: e.latlng.lng };
       updatePolygonLayer(poly);
+      autoSaveState();
+    });
+    centerHandle.on('dragend', () => {
+      autoSaveState();
     });
 
     // Маркери вершин
@@ -1293,6 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d === dot));
       const currentCoords = computeTransformedLatLngs(activePolygon);
       createHandles(activePolygon, currentCoords);
+      autoSaveState();
     });
   });
 
@@ -1300,6 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
   polygonNameInput.addEventListener('input', (e) => {
     if (activePolygon) {
       activePolygon.name = e.target.value || 'Територія';
+      autoSaveState();
     }
   });
 
@@ -1320,6 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activePolygon.contourOpacity = val / 100;
     polygonContourOpacityValue.textContent = `${val}%`;
     updatePolygonStyle(activePolygon);
+    autoSaveState();
   });
 
   // Прозорість супутникового знімка території
@@ -1331,6 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activePolygon.imageOverlayLayer) {
       activePolygon.imageOverlayLayer.update();
     }
+    autoSaveState();
   });
 
   deletePolygonBtn.addEventListener('click', () => {
@@ -1341,6 +1539,7 @@ document.addEventListener('DOMContentLoaded', () => {
     map.removeLayer(activePolygon.layer);
     polygons = polygons.filter(p => p.id !== activePolygon.id);
     deselectPolygon();
+    autoSaveState();
     showToast('Територію видалено');
   });
 
@@ -1448,6 +1647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     polygons.push(polyData);
     setPasteMode(false);
     selectPolygon(polyData);
+    autoSaveState();
     showToast('Скопійовану супутникову територію успішно вставлено!');
   }
 
@@ -1492,4 +1692,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Відновлення автоматично збережених територій та налаштувань
+  loadAutoSavedState();
+
+  window.addEventListener('beforeunload', () => {
+    autoSaveState();
+  });
 });
