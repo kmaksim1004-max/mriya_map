@@ -151,3 +151,10 @@ class TestSatelliteAndImageryTerritoryFeatures(unittest.TestCase):
         self.assertIn("latLngToContainerPoint", self.js, "Closing detection must calculate screen container point distance")
         self.assertIn("dblclick", self.js, "Double-click polygon closing must be supported")
         self.assertIn("e.key === 'Enter'", self.js, "Enter key polygon closing must be supported")
+
+    def test_contour_opacity_and_synchronized_rotation(self):
+        self.assertIn('id="polygonContourOpacitySlider"', self.html, "polygonContourOpacitySlider must be in index.html")
+        self.assertIn('min="0"', self.html, "Opacity sliders must allow minimum 0%")
+        self.assertIn("polygonContourOpacitySlider", self.js, "polygonContourOpacitySlider must be wired in script.js")
+        self.assertIn("updatePolygonStyle", self.js, "updatePolygonStyle must be defined in script.js")
+        self.assertIn("offset.dx * cosR + offset.dy * sinR", self.js, "Rotation coordinates must be synchronized clockwise")

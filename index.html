@@ -256,14 +256,23 @@
     </div>
     </div>
 
-
     <div class="transform-section">
       <div class="transform-header">
         <label for="polygonOpacitySlider">Прозорість знімка:</label>
         <span id="polygonOpacityValue" class="transform-val">100%</span>
       </div>
       <div class="slider-row">
-        <input type="range" id="polygonOpacitySlider" min="10" max="100" value="100" step="5" class="transform-slider" />
+        <input type="range" id="polygonOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
+      </div>
+    </div>
+
+    <div class="transform-section">
+      <div class="transform-header">
+        <label for="polygonContourOpacitySlider">Прозорість контуру:</label>
+        <span id="polygonContourOpacityValue" class="transform-val">100%</span>
+      </div>
+      <div class="slider-row">
+        <input type="range" id="polygonContourOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
       </div>
     </div>
     <div class="polygon-footer">
