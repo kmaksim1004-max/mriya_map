@@ -83,5 +83,42 @@ class TestTileEndpointsAvailability(unittest.TestCase):
             except Exception as e:
                 self.fail(f"Tile server {name} failed: {e}")
 
+
+class TestPolygonTools(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(REPO_DIR, "index.html"), "r", encoding="utf-8") as f:
+            self.html = f.read()
+        with open(os.path.join(REPO_DIR, "script.js"), "r", encoding="utf-8") as f:
+            self.js = f.read()
+        with open(os.path.join(REPO_DIR, "style.css"), "r", encoding="utf-8") as f:
+            self.css = f.read()
+
+    def test_polygon_controls_are_present_and_wired(self):
+        required_ids = [
+            "areaDrawBtn", "finishAreaBtn", "clearAreaBtn", "polygonCard",
+            "copyPolygonBtn", "pastePolygonBtn", "polygonRotateSlider",
+            "polygonScaleSlider", "deletePolygonBtn", "cancelPasteBtn"
+        ]
+        for elem_id in required_ids:
+            self.assertIn(f'id="{elem_id}"', self.html, f"Missing polygon control: {elem_id}")
+            self.assertIn(f"getElementById('{elem_id}')", self.js, f"Unwired polygon control: {elem_id}")
+
+    def test_polygon_drawing_requires_three_points_and_can_close(self):
+        self.assertIn("areaDrawPoints.length < 3", self.js)
+        self.assertIn("finishPolygonDrawing()", self.js)
+        self.assertIn("addAreaDrawPoint(e.latlng)", self.js)
+
+    def test_polygon_transform_copy_and_paste_are_implemented(self):
+        for behavior in [
+            "computeTransformedLatLngs", "poly.rotation", "poly.scale",
+            "copySelectedPolygon", "pastePolygonAt", "setPasteMode(true)"
+        ]:
+            self.assertIn(behavior, self.js, f"Missing polygon behavior: {behavior}")
+
+    def test_polygon_controls_have_responsive_styles(self):
+        self.assertIn(".polygon-card", self.css)
+        self.assertIn(".area-banner", self.css)
+        self.assertIn("@media (max-width: 600px)", self.css)
+
 if __name__ == "__main__":
     unittest.main()
