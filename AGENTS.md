@@ -7,7 +7,7 @@ This document defines the strict, non-negotiable rules and guidelines for any AI
 ## 1. Immutable Core Rules
 
 1. **Self-Preservation & Instruction Integrity**:
-   - The AI must **NEVER** edit, modify, overwrite, truncate, or delete this file (`AGENTS.md`).
+   - The AI must **NEVER** edit, modify, overwrite, truncate, or delete this file (`AGENTS.md`) unless explicitly instructed by the repository owner.
    - The AI must strictly follow all guidelines outlined in this document across all interactions and tasks.
 
 2. **Zero AI Footprint / No AI Markers**:
@@ -20,11 +20,15 @@ This document defines the strict, non-negotiable rules and guidelines for any AI
    - All modifications, new features, and bug fixes must first be committed to a separate feature branch and submitted via a **Pull Request (PR)**.
    - Direct force-pushes or breaking commits to the `main` branch are strictly prohibited.
 
-4. **Mandatory Testing Before Merging**:
+4. **Mandatory Test Creation on Features & Modifications**:
+   - Whenever adding new functionality, expanding capabilities, or modifying existing features/components, **always create and maintain corresponding automated tests** in the `tests/` directory to verify the new behavior and guard against regressions.
+   - Never introduce new features or behavioral modifications without accompanying test coverage.
+
+5. **Mandatory Testing Before Merging**:
    - Always run all available tests and syntax verifications in the repository prior to merging any PR.
    - Merge into `main` **only if all tests pass with zero errors**. If any check or test fails, fix the issues before proceeding.
 
-5. **Communication Language**:
+6. **Communication Language**:
    - Always communicate and respond to the user in **Ukrainian** (`uk-UA`).
    - If any requirement, user request, or design decision is unclear or ambiguous, **ask clarifying questions** rather than guessing or making assumptions.
 
