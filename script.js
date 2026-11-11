@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
       thumbClass: 'satellite-thumb',
       layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-        maxZoom: 19
+        maxZoom: 19,
+        crossOrigin: 'anonymous'
       })
     },
     hybrid: {
@@ -75,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let initialLat = 48.379433;
   let initialLng = 31.165580;
   let initialZoom = 6;
-  let activeLayerKey = 'standard';
+  let activeLayerKey = 'satellite';
 
   // Перевірка URL hash
   if (window.location.hash) {
@@ -174,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const scaleUpBtn = document.getElementById('scaleUpBtn');
   const scaleResetBtn = document.getElementById('scaleResetBtn');
   const deletePolygonBtn = document.getElementById('deletePolygonBtn');
+  const polygonOpacitySlider = document.getElementById('polygonOpacitySlider');
+  const polygonOpacityValue = document.getElementById('polygonOpacityValue');
 
   // Оновлення мініатюри
   function updateActiveThumbnail(key) {
@@ -676,6 +679,151 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeHandles = [];
   let centerHandle = null;
 
+
+  // Векторно-супутниковий оверлей для відображення вирізаного супутникового знімка території
+  const TerritoryOverlay = L.Layer.extend({
+    initialize: function(poly) {
+      this.poly = poly;
+      this._canvas = null;
+      this._map = null;
+    },
+    onAdd: function(map) {
+      this._map = map;
+      this._canvas = L.DomUtil.create('canvas', 'territory-overlay-canvas');
+      this._canvas.style.position = 'absolute';
+      this._canvas.style.pointerEvents = 'none';
+      map.getPanes().overlayPane.appendChild(this._canvas);
+      map.on('viewreset move zoom zoomend', this.update, this);
+      this.update();
+    },
+    onRemove: function(map) {
+      if (this._canvas && this._canvas.parentNode) {
+        this._canvas.parentNode.removeChild(this._canvas);
+      }
+      if (this._map) {
+        this._map.off('viewreset move zoom zoomend', this.update, this);
+      }
+      this._canvas = null;
+      this._map = null;
+    },
+    update: function() {
+      if (!this._map || !this._canvas || !this.poly || !this.poly.sourceImage) return;
+
+      const poly = this.poly;
+      const currentCoords = computeTransformedLatLngs(poly);
+      if (!currentCoords || currentCoords.length < 3) return;
+
+      const bounds = L.latLngBounds(currentCoords);
+      const nw = this._map.latLngToLayerPoint(bounds.getNorthWest());
+      const se = this._map.latLngToLayerPoint(bounds.getSouthEast());
+
+      const padding = 30;
+      const w = Math.ceil(se.x - nw.x) + padding * 2;
+      const h = Math.ceil(se.y - nw.y) + padding * 2;
+
+      if (w <= 0 || h <= 0) return;
+
+      const canvasOrigin = nw.subtract([padding, padding]);
+      L.DomUtil.setPosition(this._canvas, canvasOrigin);
+      this._canvas.width = w;
+      this._canvas.height = h;
+
+      const ctx = this._canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+
+      // Кліпування по контуру полігону на екрані
+      ctx.beginPath();
+      currentCoords.forEach((latlng, idx) => {
+        const pt = this._map.latLngToLayerPoint(latlng).subtract(canvasOrigin);
+        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.closePath();
+      ctx.clip();
+
+      // Масштабування відносно зуму захоплення знімка
+      const currentZoom = this._map.getZoom();
+      const zoomScale = Math.pow(2, currentZoom - poly.captureZoom);
+      const latScale = Math.cos(poly.center.lat * Math.PI / 180) / Math.max(0.0001, Math.cos(poly.captureCenter.lat * Math.PI / 180));
+      const effectiveScale = (poly.scale / 100) * zoomScale * latScale;
+
+      const centerPt = this._map.latLngToLayerPoint(poly.center).subtract(canvasOrigin);
+
+      ctx.save();
+      ctx.translate(centerPt.x, centerPt.y);
+      ctx.rotate((poly.rotation * Math.PI) / 180);
+      ctx.scale(effectiveScale, effectiveScale);
+      ctx.globalAlpha = poly.opacity !== undefined ? poly.opacity : 1.0;
+
+      const sourceCenter = poly.sourceCenterInImg || { x: poly.sourceWidth / 2, y: poly.sourceHeight / 2 };
+      ctx.drawImage(poly.sourceImage, -sourceCenter.x, -sourceCenter.y);
+      ctx.restore();
+    }
+  });
+
+  // Захоплення супутникового знімка всередині полігону
+  async function capturePolygonImagery(poly) {
+    const coords = computeTransformedLatLngs(poly);
+    if (!coords || coords.length < 3) return;
+
+    const bounds = L.latLngBounds(coords);
+    const captureZoom = Math.min(18, Math.max(10, map.getZoom()));
+
+    const nw = map.project(bounds.getNorthWest(), captureZoom);
+    const se = map.project(bounds.getSouthEast(), captureZoom);
+
+    const width = Math.max(10, Math.ceil(se.x - nw.x));
+    const height = Math.max(10, Math.ceil(se.y - nw.y));
+
+    const minTileX = Math.floor(nw.x / 256);
+    const maxTileX = Math.floor(se.x / 256);
+    const minTileY = Math.floor(nw.y / 256);
+    const maxTileY = Math.floor(se.y / 256);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    const tilePromises = [];
+    for (let ty = minTileY; ty <= maxTileY; ty++) {
+      for (let tx = minTileX; tx <= maxTileX; tx++) {
+        const tileUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${captureZoom}/${ty}/${tx}`;
+        const dx = tx * 256 - nw.x;
+        const dy = ty * 256 - nw.y;
+
+        const p = new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            try {
+              ctx.drawImage(img, dx, dy);
+            } catch (e) {}
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = tileUrl;
+        });
+        tilePromises.push(p);
+      }
+    }
+
+    await Promise.all(tilePromises);
+
+    const centerPt = map.project(poly.center, captureZoom);
+
+    poly.sourceImage = canvas;
+    poly.sourceWidth = width;
+    poly.sourceHeight = height;
+    poly.sourceCenterInImg = { x: centerPt.x - nw.x, y: centerPt.y - nw.y };
+    poly.captureZoom = captureZoom;
+    poly.captureCenter = { lat: poly.center.lat, lng: poly.center.lng };
+
+    if (poly.imageOverlayLayer) {
+      poly.imageOverlayLayer.update();
+    }
+  }
+
   // Увімкнення / вимкнення режиму створення території
   areaDrawBtn.addEventListener('click', () => {
     toggleAreaDrawMode(!areaDrawMode);
@@ -687,26 +835,25 @@ document.addEventListener('DOMContentLoaded', () => {
     areaBanner.classList.toggle('hidden', !areaDrawMode);
 
     if (areaDrawMode) {
+      map.doubleClickZoom.disable();
       if (measureMode) toggleMeasureMode(false);
       if (pasteMode) setPasteMode(false);
       deselectPolygon();
       map.getContainer().style.cursor = 'crosshair';
-      showToast('Режим малювання: клікайте по карті для створення вершин території');
+      showToast('Клікайте по карті для створення вершин. Для замикання: клікніть червону точку або двічі клікніть.');
     } else {
+      map.doubleClickZoom.enable();
       map.getContainer().style.cursor = '';
       clearAreaDrawing();
     }
   }
 
   function addAreaDrawPoint(latlng) {
-    // Якщо точок >= 3 і клік здійснено поблизу першої точки — замикаємо
+    // Якщо точок >= 3 і клік здійснено поблизу першої точки (у межах 25 екранних пікселів) — замикаємо
     if (areaDrawPoints.length >= 3) {
-      const firstPt = areaDrawPoints[0];
-      const distToFirst = latlng.distanceTo(firstPt);
-      const zoom = map.getZoom();
-      // поріг кліку замикання залежно від масштабу
-      const thresholdMeters = Math.max(15, 20000 / Math.pow(2, zoom - 5));
-      if (distToFirst < thresholdMeters) {
+      const pClick = map.latLngToContainerPoint(latlng);
+      const pFirst = map.latLngToContainerPoint(areaDrawPoints[0]);
+      if (pClick.distanceTo(pFirst) <= 25) {
         finishPolygonDrawing();
         return;
       }
@@ -716,15 +863,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isFirst = areaDrawPoints.length === 1;
     const marker = L.circleMarker(latlng, {
-      radius: isFirst ? 8 : 5,
-      color: '#fff',
+      radius: isFirst ? 10 : 5,
+      color: '#ffffff',
       fillColor: isFirst ? '#ea4335' : '#1a73e8',
       fillOpacity: 1,
-      weight: 2
+      weight: isFirst ? 3 : 2
     }).addTo(map);
 
     if (isFirst) {
-      marker.bindTooltip('Клікніть сюди для замикання контуру', { direction: 'top', offset: [0, -6] });
+      marker.bindTooltip('Клікніть сюди для замикання контуру', { permanent: false, direction: 'top', offset: [0, -8] });
       marker.on('click', (e) => {
         if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
         if (areaDrawPoints.length >= 3) {
@@ -763,6 +910,12 @@ document.addEventListener('DOMContentLoaded', () => {
     areaPointsCount.textContent = '0 точок';
   }
 
+  map.on('dblclick', (e) => {
+    if (areaDrawMode && areaDrawPoints.length >= 3) {
+      if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+      finishPolygonDrawing();
+    }
+  });
   clearAreaBtn.addEventListener('click', clearAreaDrawing);
   closeAreaBtn.addEventListener('click', () => toggleAreaDrawMode(false));
 
@@ -787,7 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const polyLayer = L.polygon(areaDrawPoints, {
       color: '#1a73e8',
       fillColor: '#1a73e8',
-      fillOpacity: 0.25,
+      fillOpacity: 0.15,
       weight: 2
     }).addTo(map);
 
@@ -797,11 +950,21 @@ document.addEventListener('DOMContentLoaded', () => {
       name: `Територія ${polygons.length + 1}`,
       center: center,
       baseOffsets: baseOffsets,
-      scale: 100, // відсотки
-      rotation: 0, // градуси (-180..180)
+      scale: 100,
+      rotation: 0,
       color: '#1a73e8',
-      layer: polyLayer
+      opacity: 1.0,
+      sourceImage: null,
+      sourceWidth: 0,
+      sourceHeight: 0,
+      sourceCenterInImg: null,
+      captureZoom: map.getZoom(),
+      captureCenter: { lat: center.lat, lng: center.lng },
+      layer: polyLayer,
+      imageOverlayLayer: null
     };
+
+    polyData.imageOverlayLayer = new TerritoryOverlay(polyData).addTo(map);
 
     polyLayer.on('click', (e) => {
       if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
@@ -813,7 +976,15 @@ document.addEventListener('DOMContentLoaded', () => {
     polygons.push(polyData);
     toggleAreaDrawMode(false);
     selectPolygon(polyData);
-    showToast('Територію створено! Її можна обертати, масштабувати, копіювати та перетягувати.');
+
+    capturePolygonImagery(polyData).then(() => {
+      polyLayer.setStyle({ fillOpacity: 0.02 });
+      if (polyData.imageOverlayLayer) {
+        polyData.imageOverlayLayer.update();
+      }
+    });
+
+    showToast('Територію створено! Супутниковий знімок всередині захоплено та готовий до копіювання.');
   }
 
   // Обчислення центроїда
@@ -862,6 +1033,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function updatePolygonLayer(poly) {
     const newCoords = computeTransformedLatLngs(poly);
     poly.layer.setLatLngs(newCoords);
+    if (poly.imageOverlayLayer) {
+      poly.imageOverlayLayer.update();
+    }
     updatePolygonMetricsDisplay(newCoords);
 
     if (activePolygon === poly) {
@@ -928,6 +1102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     polygonRotateValue.textContent = `${poly.rotation}°`;
     polygonScaleSlider.value = poly.scale;
     polygonScaleValue.textContent = `${poly.scale}%`;
+
+    const opVal = Math.round((poly.opacity !== undefined ? poly.opacity : 1.0) * 100);
+    polygonOpacitySlider.value = opVal;
+    polygonOpacityValue.textContent = `${opVal}%`;
 
     // Палітра
     document.querySelectorAll('.color-dot').forEach(dot => {
@@ -1106,8 +1284,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Видалення території
+
+  // Прозорість супутникового знімка території
+  polygonOpacitySlider.addEventListener('input', (e) => {
+    if (!activePolygon) return;
+    const val = parseInt(e.target.value, 10);
+    activePolygon.opacity = val / 100;
+    polygonOpacityValue.textContent = `${val}%`;
+    if (activePolygon.imageOverlayLayer) {
+      activePolygon.imageOverlayLayer.update();
+    }
+  });
+
   deletePolygonBtn.addEventListener('click', () => {
     if (!activePolygon) return;
+    if (activePolygon.imageOverlayLayer) {
+      map.removeLayer(activePolygon.imageOverlayLayer);
+    }
     map.removeLayer(activePolygon.layer);
     polygons = polygons.filter(p => p.id !== activePolygon.id);
     deselectPolygon();
@@ -1124,9 +1317,16 @@ document.addEventListener('DOMContentLoaded', () => {
       baseOffsets: JSON.parse(JSON.stringify(activePolygon.baseOffsets)),
       scale: activePolygon.scale,
       rotation: activePolygon.rotation,
-      color: activePolygon.color
+      color: activePolygon.color,
+      opacity: activePolygon.opacity !== undefined ? activePolygon.opacity : 1.0,
+      sourceImage: activePolygon.sourceImage,
+      sourceWidth: activePolygon.sourceWidth,
+      sourceHeight: activePolygon.sourceHeight,
+      sourceCenterInImg: activePolygon.sourceCenterInImg,
+      captureZoom: activePolygon.captureZoom,
+      captureCenter: activePolygon.captureCenter
     };
-    showToast(`"${activePolygon.name}" скопійовано! Натисніть "Вставити" та клікніть у потрібне місце на карті.`);
+    showToast(`Супутникову територію "${activePolygon.name}" скопійовано! Натисніть "Вставити" та клікніть на карті.`);
   }
 
   pastePolygonBtn.addEventListener('click', () => {
@@ -1176,18 +1376,27 @@ document.addEventListener('DOMContentLoaded', () => {
       scale: polygonClipboard.scale,
       rotation: polygonClipboard.rotation,
       color: polygonClipboard.color,
-      layer: null
+      opacity: polygonClipboard.opacity !== undefined ? polygonClipboard.opacity : 1.0,
+      sourceImage: polygonClipboard.sourceImage,
+      sourceWidth: polygonClipboard.sourceWidth,
+      sourceHeight: polygonClipboard.sourceHeight,
+      sourceCenterInImg: polygonClipboard.sourceCenterInImg,
+      captureZoom: polygonClipboard.captureZoom,
+      captureCenter: polygonClipboard.captureCenter,
+      layer: null,
+      imageOverlayLayer: null
     };
 
     const initialCoords = computeTransformedLatLngs(polyData);
     const polyLayer = L.polygon(initialCoords, {
       color: polyData.color,
       fillColor: polyData.color,
-      fillOpacity: 0.25,
+      fillOpacity: polyData.sourceImage ? 0.02 : 0.25,
       weight: 2
     }).addTo(map);
 
     polyData.layer = polyLayer;
+    polyData.imageOverlayLayer = new TerritoryOverlay(polyData).addTo(map);
 
     polyLayer.on('click', (e) => {
       if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
@@ -1199,12 +1408,17 @@ document.addEventListener('DOMContentLoaded', () => {
     polygons.push(polyData);
     setPasteMode(false);
     selectPolygon(polyData);
-    showToast('Територію успішно вставлено в нову локацію!');
+    showToast('Скопійовану супутникову територію успішно вставлено!');
   }
 
   // ГАРЯЧІ КЛАВІШІ (Ctrl+C, Ctrl+V, Esc, Delete)
   document.addEventListener('keydown', (e) => {
     const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+    if (e.key === 'Enter' && areaDrawMode && areaDrawPoints.length >= 3) {
+      finishPolygonDrawing();
+      return;
+    }
 
     if (e.key === 'Escape') {
       if (pasteMode) setPasteMode(false);

@@ -43,17 +43,6 @@
 
     <!-- Search Suggestions Dropdown -->
     <div id="searchResults" class="search-results hidden"></div>
-
-    <!-- Quick Location Chips -->
-    <div class="quick-chips">
-      <button class="chip" data-query="Київ, Україна">🇺🇦 Київ</button>
-      <button class="chip" data-query="Львів, Україна">Львів</button>
-      <button class="chip" data-query="Одеса, Україна">Одеса</button>
-      <button class="chip" data-query="Говерла, Карпати">⛰️ Говерла</button>
-      <button class="chip" data-query="Париж, Франція">Париж</button>
-      <button class="chip" data-query="Токіо, Японія">Токіо</button>
-      <button class="chip" data-query="Нью-Йорк, США">Нью-Йорк</button>
-    </div>
   </div>
 
   <!-- Bottom-Left Layer Switcher (Google Maps Style) -->
@@ -69,11 +58,11 @@
         <button id="closeLayerPanelBtn" class="close-panel-btn">&times;</button>
       </div>
       <div class="layer-grid">
-        <div class="layer-item active" data-layer="standard">
+        <div class="layer-item" data-layer="standard">
           <div class="layer-preview standard-thumb"></div>
           <span>Карта</span>
         </div>
-        <div class="layer-item" data-layer="satellite">
+        <div class="layer-item active" data-layer="satellite">
           <div class="layer-preview satellite-thumb"></div>
           <span>Супутник</span>
         </div>
@@ -164,7 +153,7 @@
   <!-- Area Drawing Banner (Active during polygon drawing) -->
   <div id="areaBanner" class="area-banner hidden">
     <div class="area-banner-text">
-      <strong>Малювання території:</strong> Клікайте по карті для додавання вершин (мінімум 3).
+      <strong>Малювання території:</strong> Клікайте по карті для вершин. Для замикання: клікніть червону точку, двічі клікніть або натисніть "Замкнути".
       <span id="areaPointsCount" class="area-badge">0 точок</span>
     </div>
     <div class="area-banner-actions">
@@ -255,8 +244,28 @@
         <button id="scaleUpBtn" class="stepper-btn" title="Збільшити на 10%">+10%</button>
         <button id="scaleResetBtn" class="stepper-btn reset-btn" title="Скинути масштаб">100%</button>
       </div>
+    
+    <div class=transform-section>
+      <div class=transform-header>
+        <label for=polygonOpacitySlider>Прозорість знімка:</label>
+        <span id=polygonOpacityValue class=transform-val>100%</span>
+      </div>
+      <div class=slider-row>
+        <input type=range id=polygonOpacitySlider min=10 max=100 value=100 step=5 class=transform-slider />
+      </div>
+    </div>
     </div>
 
+
+    <div class="transform-section">
+      <div class="transform-header">
+        <label for="polygonOpacitySlider">Прозорість знімка:</label>
+        <span id="polygonOpacityValue" class="transform-val">100%</span>
+      </div>
+      <div class="slider-row">
+        <input type="range" id="polygonOpacitySlider" min="10" max="100" value="100" step="5" class="transform-slider" />
+      </div>
+    </div>
     <div class="polygon-footer">
       <div class="color-palette">
         <button class="color-dot active" data-color="#1a73e8" style="background: #1a73e8;" title="Синій"></button>

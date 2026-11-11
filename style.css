@@ -714,7 +714,7 @@ body, html {
 /* AREA / POLYGON DRAWING & EDITING */
 .area-banner, .paste-banner {
   position: absolute;
-  top: 16px;
+  top: 76px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -1054,6 +1054,7 @@ body, html {
     bottom: 28px;
   }
   .area-banner, .paste-banner {
+    top: 68px;
     width: calc(100vw - 24px);
     overflow-x: auto;
     justify-content: space-between;
@@ -1069,4 +1070,12 @@ body, html {
   .status-bar {
     display: none;
   }
+}
+
+
+/* Векторно-супутниковий оверлей скопійованої території */
+.territory-overlay-canvas {
+  position: absolute;
+  pointer-events: none;
+  image-rendering: auto;
 }
