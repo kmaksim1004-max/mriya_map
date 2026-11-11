@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mriya Map — Інтерактивна карта Землі</title>
+  <meta name="description" content="Сучасна інтерактивна карта Землі у стилі Google Maps: супутник, рельєф, топографія, темна та стандартна карти, пошук локацій, вимірювання відстаней.">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- App Styles -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
+</head>
+<body>
+
+  <!-- Map Container -->
+  <div id="map"></div>
+
+  <!-- Top-Left Floating Search Container -->
+  <div class="search-container">
+    <div class="search-card">
+      <div class="search-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
+      <input type="text" id="searchInput" placeholder="Пошук на Mriya Map (місто, адреса, координати)..." autocomplete="off" />
+      <button id="clearSearchBtn" class="icon-btn hidden" title="Очистити">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div class="search-divider"></div>
+      <button id="searchSubmitBtn" class="search-action-btn" title="Знайти">
+        Знайти
+      </button>
+    </div>
+
+    <!-- Search Suggestions Dropdown -->
+    <div id="searchResults" class="search-results hidden"></div>
+
+    <!-- Quick Location Chips -->
+    <div class="quick-chips">
+      <button class="chip" data-query="Київ, Україна">🇺🇦 Київ</button>
+      <button class="chip" data-query="Львів, Україна">Львів</button>
+      <button class="chip" data-query="Одеса, Україна">Одеса</button>
+      <button class="chip" data-query="Говерла, Карпати">⛰️ Говерла</button>
+      <button class="chip" data-query="Париж, Франція">Париж</button>
+      <button class="chip" data-query="Токіо, Японія">Токіо</button>
+      <button class="chip" data-query="Нью-Йорк, США">Нью-Йорк</button>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Layer Switcher (Google Maps Style) -->
+  <div class="layers-container" id="layersContainer">
+    <button class="layer-trigger-btn" id="layerTriggerBtn" title="Змінити шар карти">
+      <div class="layer-thumbnail" id="activeLayerThumb"></div>
+      <span class="layer-label">Шари</span>
+    </button>
+
+    <div class="layer-panel hidden" id="layerPanel">
+      <div class="layer-panel-header">
+        <h3>Тип карти</h3>
+        <button id="closeLayerPanelBtn" class="close-panel-btn">&times;</button>
+      </div>
+      <div class="layer-grid">
+        <div class="layer-item active" data-layer="standard">
+          <div class="layer-preview standard-thumb"></div>
+          <span>Карта</span>
+        </div>
+        <div class="layer-item" data-layer="satellite">
+          <div class="layer-preview satellite-thumb"></div>
+          <span>Супутник</span>
+        </div>
+        <div class="layer-item" data-layer="hybrid">
+          <div class="layer-preview hybrid-thumb"></div>
+          <span>Гібрид</span>
+        </div>
+        <div class="layer-item" data-layer="terrain">
+          <div class="layer-preview terrain-thumb"></div>
+          <span>Рельєф</span>
+        </div>
+        <div class="layer-item" data-layer="dark">
+          <div class="layer-preview dark-thumb"></div>
+          <span>Нічна</span>
+        </div>
+      </div>
+
+      <div class="layer-options-header">
+        <h4>Деталі та накладання</h4>
+      </div>
+      <div class="layer-options">
+        <label class="toggle-option">
+          <input type="checkbox" id="toggleLabels" checked>
+          <span class="toggle-custom"></span>
+          <span>Підписи міст та дороги</span>
+        </label>
+        <label class="toggle-option">
+          <input type="checkbox" id="toggleGrid">
+          <span class="toggle-custom"></span>
+          <span>Координатна сітка (Graticule)</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Floating Controls -->
+  <div class="map-controls">
+    <button id="myLocationBtn" class="control-btn" title="Моє місцезнаходження">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="4"></circle>
+        <line x1="12" y1="2" x2="12" y2="6"></line>
+        <line x1="12" y1="18" x2="12" y2="22"></line>
+        <line x1="2" y1="12" x2="6" y2="12"></line>
+        <line x1="18" y1="12" x2="22" y2="12"></line>
+      </svg>
+    </button>
+    <button id="measureBtn" class="control-btn" title="Виміряти відстань">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21.3 15.3l-6.6-6.6a2 2 0 0 0-2.8 0L2.7 17.9a2 2 0 0 0 0 2.8l.6.6a2 2 0 0 0 2.8 0l9.2-9.2 1.4 1.4-1.4 1.4 1.4 1.4 1.4-1.4 1.4 1.4-1.4 1.4 1.4 1.4 2.8-2.8a2 2 0 0 0 0-2.8z"></path>
+      </svg>
+    </button>
+    <button id="fullscreenBtn" class="control-btn" title="Повноекранний режим">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+      </svg>
+    </button>
+    <div class="control-divider"></div>
+    <button id="zoomInBtn" class="control-btn" title="Наблизити">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+    <button id="zoomOutBtn" class="control-btn" title="Віддалити">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Measurement Banner (Active during ruler mode) -->
+  <div id="measureBanner" class="measure-banner hidden">
+    <div class="measure-text">
+      <strong>Режим лінійки:</strong> Клікайте по карті для вимірювання дистанції.
+      <span id="measureDistanceText" class="measure-distance">0.00 км</span>
+    </div>
+    <div class="measure-actions">
+      <button id="clearMeasureBtn" class="measure-btn-secondary">Очистити</button>
+      <button id="closeMeasureBtn" class="measure-btn-primary">Завершити</button>
+    </div>
+  </div>
+
+  <!-- Location Details Bottom Card -->
+  <div id="placeCard" class="place-card hidden">
+    <button id="closePlaceCardBtn" class="close-card-btn">&times;</button>
+    <div class="place-header">
+      <div class="place-pin-icon">📍</div>
+      <div>
+        <h2 id="placeTitle">Обране місце</h2>
+        <p id="placeSubtitle" class="place-subtitle">Завантаження адреси...</p>
+      </div>
+    </div>
+    <div class="place-details">
+      <div class="detail-row">
+        <span class="detail-label">Координати:</span>
+        <span id="placeCoords" class="detail-value">0.000000, 0.000000</span>
+        <button id="copyCoordsBtn" class="copy-mini-btn" title="Скопіювати координати">Копіювати</button>
+      </div>
+      <div class="detail-row" id="placeElevationRow">
+        <span class="detail-label">Масштаб (Zoom):</span>
+        <span id="placeZoom" class="detail-value">12</span>
+      </div>
+    </div>
+    <div class="place-actions">
+      <button id="shareLinkBtn" class="action-btn-primary">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+        Поділитися місцем
+      </button>
+      <button id="centerPlaceBtn" class="action-btn-secondary">
+        Центрувати
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Coordinate / Status Bar -->
+  <div class="status-bar">
+    <div class="status-item" id="cursorCoords">48.379433° N, 31.165580° E</div>
+    <div class="status-item" id="zoomLevel">Зум: 6</div>
+    <div class="status-item brand">Mriya Map &copy; 2026</div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- App JS -->
+  <script src="script.js"></script>
+</body>
+</html>
