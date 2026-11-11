@@ -152,6 +152,15 @@ class TestSatelliteAndImageryTerritoryFeatures(unittest.TestCase):
         self.assertIn("dblclick", self.js, "Double-click polygon closing must be supported")
         self.assertIn("e.key === 'Enter'", self.js, "Enter key polygon closing must be supported")
 
+    def test_collapsible_card_and_autosave_features(self):
+        self.assertIn('id="togglePolygonCardBtn"', self.html, "togglePolygonCardBtn must exist in index.html")
+        self.assertIn('id="autoSaveIndicator"', self.html, "autoSaveIndicator must exist in index.html")
+        self.assertIn(".polygon-card.collapsed", self.css, "Collapsed style for polygon-card must be defined in style.css")
+        self.assertIn("togglePolygonCardCollapse", self.js, "togglePolygonCardCollapse function must be in script.js")
+        self.assertIn("autoSaveState", self.js, "autoSaveState function must be defined in script.js")
+        self.assertIn("loadAutoSavedState", self.js, "loadAutoSavedState function must be defined in script.js")
+        self.assertIn("AUTOSAVE_STORAGE_KEY", self.js, "AUTOSAVE_STORAGE_KEY must be defined in script.js")
+
     def test_contour_opacity_and_synchronized_rotation(self):
         self.assertIn('id="polygonContourOpacitySlider"', self.html, "polygonContourOpacitySlider must be in index.html")
         self.assertIn('min="0"', self.html, "Opacity sliders must allow minimum 0%")

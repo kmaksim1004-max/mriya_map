@@ -174,122 +174,124 @@
     </div>
   </div>
 
-  <!-- Polygon Inspector & Transform Card -->
+    <!-- Polygon Inspector & Transform Card -->
   <div id="polygonCard" class="polygon-card hidden">
-    <button id="closePolygonCardBtn" class="close-card-btn" title="Закрити панель">&times;</button>
-    <div class="polygon-card-header">
+    <div class="polygon-card-top-actions">
+      <button id="togglePolygonCardBtn" class="collapse-card-btn" title="Згорнути / розгорнути панель" aria-label="Згорнути панель">
+        <svg class="collapse-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+      <button id="closePolygonCardBtn" class="close-card-btn" title="Закрити панель" aria-label="Закрити">&times;</button>
+    </div>
+
+    <div class="polygon-card-header" id="polygonCardHeader" title="Натисніть щоб згорнути / розгорнути">
       <div class="polygon-card-icon">⬟</div>
       <div class="polygon-title-wrapper">
         <input type="text" id="polygonNameInput" class="polygon-name-input" value="Територія 1" title="Натисніть для перейменування" />
-        <span class="polygon-status-tag" id="polygonStatusTag">Активна зона</span>
+        <span class="polygon-status-tag" id="polygonStatusTag">Активна територія</span>
       </div>
+      <span id="autoSaveIndicator" class="autosave-tag" title="Автоматично збережено в браузері">💾 Збережено</span>
     </div>
 
-    <div class="polygon-metrics">
-      <div class="metric-box">
-        <span class="metric-label">Площа:</span>
-        <span id="polygonAreaText" class="metric-value">0.00 км²</span>
+    <div class="polygon-card-body" id="polygonCardBody">
+      <div class="polygon-metrics">
+        <div class="metric-box">
+          <span class="metric-label">Площа:</span>
+          <span id="polygonAreaText" class="metric-value">0.00 км²</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Периметр:</span>
+          <span id="polygonPerimeterText" class="metric-value">0.00 км</span>
+        </div>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Периметр:</span>
-        <span id="polygonPerimeterText" class="metric-value">0.00 км</span>
-      </div>
-    </div>
 
-    <div class="polygon-actions-row">
-      <button id="copyPolygonBtn" class="poly-btn poly-btn-copy" title="Скопіювати територію (Ctrl+C)">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-        <span>Копіювати</span>
-      </button>
-      <button id="pastePolygonBtn" class="poly-btn poly-btn-paste" title="Вставити копію на карту">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-        </svg>
-        <span>Вставити</span>
-      </button>
-      <button id="fitPolygonBtn" class="poly-btn" title="Наблизити до цієї території">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polygon points="12 8 8 12 12 16 12 8"></polygon>
-        </svg>
-        <span>Огляд</span>
-      </button>
-    </div>
+      <div class="polygon-actions-row">
+        <button id="copyPolygonBtn" class="poly-btn poly-btn-copy" title="Скопіювати територію (Ctrl+C)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>Копіювати</span>
+        </button>
+        <button id="pastePolygonBtn" class="poly-btn poly-btn-paste" title="Вставити копію на карту">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          <span>Вставити</span>
+        </button>
+        <button id="fitPolygonBtn" class="poly-btn" title="Наблизити до цієї території">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="12 8 8 12 12 16 12 8"></polygon>
+          </svg>
+          <span>Огляд</span>
+        </button>
+      </div>
 
-    <div class="transform-section">
-      <div class="transform-header">
-        <label for="polygonRotateSlider">Поворот:</label>
-        <span id="polygonRotateValue" class="transform-val">0°</span>
+      <div class="transform-section">
+        <div class="transform-header">
+          <label for="polygonRotateSlider">Поворот:</label>
+          <span id="polygonRotateValue" class="transform-val">0°</span>
+        </div>
+        <div class="slider-row">
+          <button id="rotateLeftBtn" class="stepper-btn" title="Повернути на -15°">-15°</button>
+          <input type="range" id="polygonRotateSlider" min="-180" max="180" value="0" step="1" class="transform-slider" />
+          <button id="rotateRightBtn" class="stepper-btn" title="Повернути на +15°">+15°</button>
+          <button id="rotateResetBtn" class="stepper-btn reset-btn" title="Скинути кут повороту">0°</button>
+        </div>
       </div>
-      <div class="slider-row">
-        <button id="rotateLeftBtn" class="stepper-btn" title="Повернути на -15°">-15°</button>
-        <input type="range" id="polygonRotateSlider" min="-180" max="180" value="0" step="1" class="transform-slider" />
-        <button id="rotateRightBtn" class="stepper-btn" title="Повернути на +15°">+15°</button>
-        <button id="rotateResetBtn" class="stepper-btn reset-btn" title="Скинути кут повороту">0°</button>
-      </div>
-    </div>
 
-    <div class="transform-section">
-      <div class="transform-header">
-        <label for="polygonScaleSlider">Масштаб (розмір):</label>
-        <span id="polygonScaleValue" class="transform-val">100%</span>
+      <div class="transform-section">
+        <div class="transform-header">
+          <label for="polygonScaleSlider">Масштаб (розмір):</label>
+          <span id="polygonScaleValue" class="transform-val">100%</span>
+        </div>
+        <div class="slider-row">
+          <button id="scaleDownBtn" class="stepper-btn" title="Зменшити на 10%">-10%</button>
+          <input type="range" id="polygonScaleSlider" min="20" max="300" value="100" step="5" class="transform-slider" />
+          <button id="scaleUpBtn" class="stepper-btn" title="Збільшити на 10%">+10%</button>
+          <button id="scaleResetBtn" class="stepper-btn reset-btn" title="Скинути масштаб">100%</button>
+        </div>
       </div>
-      <div class="slider-row">
-        <button id="scaleDownBtn" class="stepper-btn" title="Зменшити на 10%">-10%</button>
-        <input type="range" id="polygonScaleSlider" min="20" max="300" value="100" step="5" class="transform-slider" />
-        <button id="scaleUpBtn" class="stepper-btn" title="Збільшити на 10%">+10%</button>
-        <button id="scaleResetBtn" class="stepper-btn reset-btn" title="Скинути масштаб">100%</button>
-      </div>
-    
-    <div class=transform-section>
-      <div class=transform-header>
-        <label for=polygonOpacitySlider>Прозорість знімка:</label>
-        <span id=polygonOpacityValue class=transform-val>100%</span>
-      </div>
-      <div class=slider-row>
-        <input type=range id=polygonOpacitySlider min=10 max=100 value=100 step=5 class=transform-slider />
-      </div>
-    </div>
-    </div>
 
-    <div class="transform-section">
-      <div class="transform-header">
-        <label for="polygonOpacitySlider">Прозорість знімка:</label>
-        <span id="polygonOpacityValue" class="transform-val">100%</span>
+      <div class="transform-section">
+        <div class="transform-header">
+          <label for="polygonOpacitySlider">Прозорість знімка:</label>
+          <span id="polygonOpacityValue" class="transform-val">100%</span>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="polygonOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
+        </div>
       </div>
-      <div class="slider-row">
-        <input type="range" id="polygonOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
-      </div>
-    </div>
 
-    <div class="transform-section">
-      <div class="transform-header">
-        <label for="polygonContourOpacitySlider">Прозорість контуру:</label>
-        <span id="polygonContourOpacityValue" class="transform-val">100%</span>
+      <div class="transform-section">
+        <div class="transform-header">
+          <label for="polygonContourOpacitySlider">Прозорість контуру:</label>
+          <span id="polygonContourOpacityValue" class="transform-val">100%</span>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="polygonContourOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
+        </div>
       </div>
-      <div class="slider-row">
-        <input type="range" id="polygonContourOpacitySlider" min="0" max="100" value="100" step="5" class="transform-slider" />
+
+      <div class="polygon-footer">
+        <div class="color-palette">
+          <button class="color-dot active" data-color="#1a73e8" style="background: #1a73e8;" title="Синій"></button>
+          <button class="color-dot" data-color="#ea4335" style="background: #ea4335;" title="Червоний"></button>
+          <button class="color-dot" data-color="#34a853" style="background: #34a853;" title="Зелений"></button>
+          <button class="color-dot" data-color="#fbbc04" style="background: #fbbc04;" title="Жовтий"></button>
+          <button class="color-dot" data-color="#9334e8" style="background: #9334e8;" title="Фіолетовий"></button>
+        </div>
+        <button id="deletePolygonBtn" class="delete-poly-btn" title="Видалити цю територію">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Видалити</span>
+        </button>
       </div>
-    </div>
-    <div class="polygon-footer">
-      <div class="color-palette">
-        <button class="color-dot active" data-color="#1a73e8" style="background: #1a73e8;" title="Синій"></button>
-        <button class="color-dot" data-color="#ea4335" style="background: #ea4335;" title="Червоний"></button>
-        <button class="color-dot" data-color="#34a853" style="background: #34a853;" title="Зелений"></button>
-        <button class="color-dot" data-color="#fbbc04" style="background: #fbbc04;" title="Жовтий"></button>
-        <button class="color-dot" data-color="#9334e8" style="background: #9334e8;" title="Фіолетовий"></button>
-      </div>
-      <button id="deletePolygonBtn" class="delete-poly-btn" title="Видалити цю територію">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
-        <span>Видалити</span>
-      </button>
     </div>
   </div>
 
