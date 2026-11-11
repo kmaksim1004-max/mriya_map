@@ -122,3 +122,32 @@ class TestPolygonTools(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSatelliteAndImageryTerritoryFeatures(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(REPO_DIR, "index.html"), "r", encoding="utf-8") as f:
+            self.html = f.read()
+        with open(os.path.join(REPO_DIR, "script.js"), "r", encoding="utf-8") as f:
+            self.js = f.read()
+        with open(os.path.join(REPO_DIR, "style.css"), "r", encoding="utf-8") as f:
+            self.css = f.read()
+
+    def test_satellite_is_default_layer(self):
+        self.assertIn("activeLayerKey = 'satellite'", self.js, "Default activeLayerKey must be 'satellite'")
+        self.assertIn("crossOrigin: 'anonymous'", self.js, "Satellite tileLayer must declare crossOrigin anonymous")
+
+    def test_quick_chips_removed_from_dom(self):
+        self.assertNotIn('<div class="quick-chips">', self.html, "Quick location chips must be removed from index.html")
+
+    def test_satellite_territory_imagery_overlay(self):
+        self.assertIn("TerritoryOverlay", self.js, "TerritoryOverlay class must be defined")
+        self.assertIn("capturePolygonImagery", self.js, "capturePolygonImagery function must be defined")
+        self.assertIn("polygonOpacitySlider", self.js, "polygonOpacitySlider must be wired in script.js")
+        self.assertIn('id="polygonOpacitySlider"', self.html, "polygonOpacitySlider must be present in index.html")
+        self.assertIn(".territory-overlay-canvas", self.css, ".territory-overlay-canvas style must be defined")
+
+    def test_polygon_closure_enhancements(self):
+        self.assertIn("latLngToContainerPoint", self.js, "Closing detection must calculate screen container point distance")
+        self.assertIn("dblclick", self.js, "Double-click polygon closing must be supported")
+        self.assertIn("e.key === 'Enter'", self.js, "Enter key polygon closing must be supported")
