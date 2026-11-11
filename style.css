@@ -710,6 +710,335 @@ body, html {
   to { transform: translateY(0); opacity: 1; }
 }
 
+
+/* AREA / POLYGON DRAWING & EDITING */
+.area-banner, .paste-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: #202124;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  animation: slideDown 0.2s ease;
+  white-space: nowrap;
+}
+
+.area-badge {
+  background: #1a73e8;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.area-banner-actions, .paste-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.area-btn-primary, .paste-btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.area-btn-primary:hover, .paste-btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.area-btn-secondary, .paste-btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.area-btn-secondary:hover, .paste-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.area-banner.hidden, .paste-banner.hidden, .polygon-card.hidden {
+  display: none !important;
+}
+
+/* POLYGON CARD */
+.polygon-card {
+  position: absolute;
+  bottom: 24px;
+  left: 90px;
+  z-index: 1000;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+  width: 380px;
+  max-width: calc(100vw - 110px);
+  padding: 18px;
+  animation: slideUp 0.25s ease;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.polygon-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 28px;
+}
+
+.polygon-card-icon {
+  font-size: 22px;
+  color: var(--primary-color);
+  line-height: 1;
+}
+
+.polygon-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.polygon-name-input {
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.polygon-name-input:focus, .polygon-name-input:hover {
+  border-color: var(--border-color);
+  background: #f8f9fa;
+}
+
+.polygon-status-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-left: 4px;
+}
+
+.polygon-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.metric-box {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.polygon-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.poly-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.poly-btn:hover {
+  background: #f1f3f4;
+  border-color: #dadce0;
+}
+
+.poly-btn-copy {
+  background: #e8f0fe;
+  color: var(--primary-color);
+  border-color: #d2e3fc;
+}
+
+.poly-btn-copy:hover {
+  background: #d2e3fc;
+}
+
+.poly-btn-paste {
+  background: #e6f4ea;
+  color: #137333;
+  border-color: #ceead6;
+}
+
+.poly-btn-paste:hover {
+  background: #ceead6;
+}
+
+.transform-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.transform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.transform-val {
+  font-weight: 700;
+  color: var(--primary-color);
+  font-size: 13px;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transform-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #dadce0;
+  outline: none;
+  cursor: pointer;
+}
+
+.transform-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.stepper-btn {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stepper-btn:hover {
+  background: #e8eaed;
+}
+
+.reset-btn {
+  color: var(--text-secondary);
+}
+
+.polygon-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+}
+
+.color-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot.active {
+  border-color: #202124;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.delete-poly-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #d93025;
+  border: 1px solid #fad2cf;
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.delete-poly-btn:hover {
+  background: #fce8e6;
+  border-color: #ea4335;
+}
+
 /* RESPONSIVE */
 @media (max-width: 600px) {
   .search-container {
@@ -717,12 +1046,17 @@ body, html {
     left: 12px;
     top: 12px;
   }
-  .place-card {
+  .place-card, .polygon-card {
     left: 12px;
     right: 12px;
     width: auto;
     max-width: none;
     bottom: 28px;
+  }
+  .area-banner, .paste-banner {
+    width: calc(100vw - 24px);
+    overflow-x: auto;
+    justify-content: space-between;
   }
   .layers-container {
     bottom: 28px;
