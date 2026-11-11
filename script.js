@@ -177,6 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const deletePolygonBtn = document.getElementById('deletePolygonBtn');
   const polygonOpacitySlider = document.getElementById('polygonOpacitySlider');
   const polygonOpacityValue = document.getElementById('polygonOpacityValue');
+  const polygonContourOpacitySlider = document.getElementById('polygonContourOpacitySlider');
+  const polygonContourOpacityValue = document.getElementById('polygonContourOpacityValue');
 
   // Оновлення мініатюри
   function updateActiveThumbnail(key) {
@@ -713,17 +715,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const currentCoords = computeTransformedLatLngs(poly);
       if (!currentCoords || currentCoords.length < 3) return;
 
-      const bounds = L.latLngBounds(currentCoords);
-      const nw = this._map.latLngToLayerPoint(bounds.getNorthWest());
-      const se = this._map.latLngToLayerPoint(bounds.getSouthEast());
+      const pts = currentCoords.map(c => this._map.latLngToLayerPoint(c));
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      pts.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
 
-      const padding = 30;
-      const w = Math.ceil(se.x - nw.x) + padding * 2;
-      const h = Math.ceil(se.y - nw.y) + padding * 2;
+      const padding = 50;
+      const w = Math.ceil(maxX - minX) + padding * 2;
+      const h = Math.ceil(maxY - minY) + padding * 2;
 
       if (w <= 0 || h <= 0) return;
 
-      const canvasOrigin = nw.subtract([padding, padding]);
+      const canvasOrigin = L.point(minX - padding, minY - padding);
       L.DomUtil.setPosition(this._canvas, canvasOrigin);
       this._canvas.width = w;
       this._canvas.height = h;
@@ -731,20 +738,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const ctx = this._canvas.getContext('2d');
       ctx.clearRect(0, 0, w, h);
 
-      // Кліпування по контуру полігону на екрані
+      // Кліпування точно по контуру полігону на екрані
       ctx.beginPath();
-      currentCoords.forEach((latlng, idx) => {
-        const pt = this._map.latLngToLayerPoint(latlng).subtract(canvasOrigin);
-        if (idx === 0) ctx.moveTo(pt.x, pt.y);
-        else ctx.lineTo(pt.x, pt.y);
+      pts.forEach((pt, idx) => {
+        const p = pt.subtract(canvasOrigin);
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
       });
       ctx.closePath();
       ctx.clip();
 
-      // Масштабування відносно зуму захоплення знімка
+      // Масштабування відносно зуму та широти захоплення знімка
       const currentZoom = this._map.getZoom();
       const zoomScale = Math.pow(2, currentZoom - poly.captureZoom);
-      const latScale = Math.cos(poly.center.lat * Math.PI / 180) / Math.max(0.0001, Math.cos(poly.captureCenter.lat * Math.PI / 180));
+      const latScale = Math.cos(poly.captureCenter.lat * Math.PI / 180) / Math.max(0.0001, Math.cos(poly.center.lat * Math.PI / 180));
       const effectiveScale = (poly.scale / 100) * zoomScale * latScale;
 
       const centerPt = this._map.latLngToLayerPoint(poly.center).subtract(canvasOrigin);
@@ -954,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rotation: 0,
       color: '#1a73e8',
       opacity: 1.0,
+      contourOpacity: 1.0,
       sourceImage: null,
       sourceWidth: 0,
       sourceHeight: 0,
@@ -978,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectPolygon(polyData);
 
     capturePolygonImagery(polyData).then(() => {
-      polyLayer.setStyle({ fillOpacity: 0.02 });
+      updatePolygonStyle(polyData);
       if (polyData.imageOverlayLayer) {
         polyData.imageOverlayLayer.update();
       }
@@ -1019,13 +1027,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const cosLat = Math.max(0.0001, Math.cos(poly.center.lat * Math.PI / 180));
 
     return poly.baseOffsets.map(offset => {
-      const xRot = s * (offset.dx * cosR - offset.dy * sinR);
-      const yRot = s * (offset.dx * sinR + offset.dy * cosR);
+      // Узгоджене обертання контуру та растрового знімка за годинниковою стрілкою
+      const xRot = s * (offset.dx * cosR + offset.dy * sinR);
+      const yRot = s * (-offset.dx * sinR + offset.dy * cosR);
 
       return L.latLng(
         poly.center.lat + (yRot / 111320),
         poly.center.lng + (xRot / (111320 * cosLat))
       );
+    });
+  }
+
+
+  // Оновлення стилю та прозорості контуру
+  function updatePolygonStyle(poly) {
+    const cOp = poly.contourOpacity !== undefined ? poly.contourOpacity : 1.0;
+    const fillOp = cOp * (poly.sourceImage ? 0.02 : 0.2);
+    poly.layer.setStyle({
+      color: poly.color,
+      fillColor: poly.color,
+      opacity: cOp,
+      fillOpacity: fillOp,
+      weight: cOp === 0 ? 0 : 2
     });
   }
 
@@ -1106,6 +1129,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const opVal = Math.round((poly.opacity !== undefined ? poly.opacity : 1.0) * 100);
     polygonOpacitySlider.value = opVal;
     polygonOpacityValue.textContent = `${opVal}%`;
+
+    const cOpVal = Math.round((poly.contourOpacity !== undefined ? poly.contourOpacity : 1.0) * 100);
+    polygonContourOpacitySlider.value = cOpVal;
+    polygonContourOpacityValue.textContent = `${cOpVal}%`;
 
     // Палітра
     document.querySelectorAll('.color-dot').forEach(dot => {
@@ -1285,6 +1312,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Видалення території
 
+
+  // Прозорість контуру території (від 0% до 100%)
+  polygonContourOpacitySlider.addEventListener('input', (e) => {
+    if (!activePolygon) return;
+    const val = parseInt(e.target.value, 10);
+    activePolygon.contourOpacity = val / 100;
+    polygonContourOpacityValue.textContent = `${val}%`;
+    updatePolygonStyle(activePolygon);
+  });
+
   // Прозорість супутникового знімка території
   polygonOpacitySlider.addEventListener('input', (e) => {
     if (!activePolygon) return;
@@ -1319,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rotation: activePolygon.rotation,
       color: activePolygon.color,
       opacity: activePolygon.opacity !== undefined ? activePolygon.opacity : 1.0,
+      contourOpacity: activePolygon.contourOpacity !== undefined ? activePolygon.contourOpacity : 1.0,
       sourceImage: activePolygon.sourceImage,
       sourceWidth: activePolygon.sourceWidth,
       sourceHeight: activePolygon.sourceHeight,
@@ -1377,6 +1415,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rotation: polygonClipboard.rotation,
       color: polygonClipboard.color,
       opacity: polygonClipboard.opacity !== undefined ? polygonClipboard.opacity : 1.0,
+      contourOpacity: polygonClipboard.contourOpacity !== undefined ? polygonClipboard.contourOpacity : 1.0,
       sourceImage: polygonClipboard.sourceImage,
       sourceWidth: polygonClipboard.sourceWidth,
       sourceHeight: polygonClipboard.sourceHeight,
@@ -1391,8 +1430,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const polyLayer = L.polygon(initialCoords, {
       color: polyData.color,
       fillColor: polyData.color,
-      fillOpacity: polyData.sourceImage ? 0.02 : 0.25,
-      weight: 2
+      fillOpacity: (polyData.contourOpacity !== undefined ? polyData.contourOpacity : 1.0) * (polyData.sourceImage ? 0.02 : 0.25),
+      opacity: polyData.contourOpacity !== undefined ? polyData.contourOpacity : 1.0,
+      weight: (polyData.contourOpacity === 0) ? 0 : 2
     }).addTo(map);
 
     polyData.layer = polyLayer;
